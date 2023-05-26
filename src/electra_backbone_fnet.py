@@ -5,13 +5,13 @@ from common import LogitsAdapter, ElectraWrapper
 
 from transformers.models.fnet import FNetForMaskedLM, FNetForPreTraining
 import torch.nn as nn
-from typing import Tuple, OrderedDict, Option, Self
+from typing import Tuple, OrderedDict, Optional, Self
 import os
 
 from typing import Callable
 
 class FNetEmbeddingProjectionFixer(Callable[[FNetForMaskedLM, FNetForPreTraining],None]):
-    def __init__(self, embedding_size: int, disc_config, gen_config=None, tie_embeddings: Option[Callable[[FNetForMaskedLM, FNetForPreTraining], None]] = None):
+    def __init__(self, embedding_size: int, disc_config, gen_config=None, tie_embeddings: Optional[Callable[[FNetForMaskedLM, FNetForPreTraining], None]] = None):
         self._gen_config_given: bool = gen_config is not None
         self._embedding_size: int = embedding_size
         self._gen_hidden_size: int = gen_config.hidden_size
@@ -20,7 +20,7 @@ class FNetEmbeddingProjectionFixer(Callable[[FNetForMaskedLM, FNetForPreTraining
         self._disc_pad_token_id: int = disc_config.pad_token_id
         self._disc_max_position_embeddings: int = disc_config.max_position_embeddings
         self._disc_type_vocab_size: int = disc_config.type_vocab_size
-        self._tie_embeddings: Option[Callable[[FNetForMaskedLM, FNetForPreTraining], None]] = tie_embeddings
+        self._tie_embeddings: Optional[Callable[[FNetForMaskedLM, FNetForPreTraining], None]] = tie_embeddings
     
     def __call__(self, gen: FNetForMaskedLM, disc: FNetForPreTraining) -> None:
         disc.fnet.embeddings.word_embeddings = nn.Embedding(self._disc_vocab_size, self._embedding_size, padding_idx=self._disc_pad_token_id)

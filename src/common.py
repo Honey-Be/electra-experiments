@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 
 from electra_pytorch import Electra
 
-from typing import Generic, TypeVar, OrderedDict, Union, Self, Tuple, Callable, Option
+from typing import Generic, TypeVar, OrderedDict, Union, Self, Tuple, Callable, Optional
 
 A = TypeVar('A', bound=nn.Module)
 class LogitsAdapter(torch.nn.Module, Generic[A]):
@@ -42,7 +42,7 @@ class ElectraWrapper(Electra, Generic[Gen, Disc], metaclass=ABCMeta):
         pad_token: str = '[PAD]',
         class_token: str = '[CLS]',
         separator_token: str = '[SEP]',
-        fix: Option[Callable[[Gen, Disc], None]] = None,
+        fix: Optional[Callable[[Gen, Disc], None]] = None,
         **kwargs
     ):
         _generator_inner: Gen = Gen(config=model_generator)
@@ -51,7 +51,9 @@ class ElectraWrapper(Electra, Generic[Gen, Disc], metaclass=ABCMeta):
             fix(_generator_inner, _discriminator_inner)
         else:
             Self._tie_embeddings(_generator_inner,_discriminator_inner)
-        (_generator, _discriminator): Tuple[Union[LogitsAdapter, Gen], Union[LogitsAdapter, Disc]] = (LogitsAdapter(_generator_inner), LogitsAdapter(_discriminator_inner)) if wrap_to_logits_adapter else (Gen(model_generator), Disc(model_discriminator))
+        _generator: Union[LogitsAdapter, Gen]
+        _discriminator: Union[LogitsAdapter, Disc]
+        _generator, _discriminator = (LogitsAdapter(_generator_inner), LogitsAdapter(_discriminator_inner)) if wrap_to_logits_adapter else (Gen(model_generator), Disc(model_discriminator))
         super().__init__(
             _generator,
             _discriminator,

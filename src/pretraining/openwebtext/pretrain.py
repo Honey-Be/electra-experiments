@@ -23,12 +23,12 @@ from openwebtext.dataset import load_owt, new_tokenizer, wrap_example_builder
 
 logger = logging.getLogger(__name__)
 
-from ...common import LogitsAdapter, ElectraWrapper
+from common import ElectraWrapper
 
 from typing import TypeVar, Generic
-from ...electra_default import *
-from ...electra_backbone_fnet import *
-from ...electra_backbone_mobilebert import *
+from electra_default import *
+from electra_backbone_fnet import *
+from electra_backbone_mobilebert import *
 
 from typing import Type
 

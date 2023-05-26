@@ -1,1 +1,1 @@
-from . import *
+from . import openwebtext as openwebtext

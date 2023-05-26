@@ -1,3 +1,4 @@
 src/data/.tmp.driveupload
 src/data/openwebtext/v1/*
+src/data/openwebtext_features
 src/pretraining/openwebtext/__pycache__
