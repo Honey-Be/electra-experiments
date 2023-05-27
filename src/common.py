@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 
 from electra_pytorch import Electra
 
-from typing import Generic, TypeVar, OrderedDict, Union, Self, Tuple, Callable, Optional
+from typing import Generic, TypeVar, OrderedDict, Union, Self, Tuple, Callable, Optional, Protocol, get_args
 
 A = TypeVar('A', bound=nn.Module)
 class LogitsAdapter(torch.nn.Module, Generic[A]):
@@ -15,18 +15,12 @@ class LogitsAdapter(torch.nn.Module, Generic[A]):
         def forward(self, *args, **kwargs):
             return self.adaptee(*args, **kwargs)[0]
 
-Gen = TypeVar('Gen',bound=nn.Module)
+Gen = TypeVar('Gen', bound=nn.Module)
 Disc = TypeVar('Disc', bound=nn.Module)
 class ElectraWrapper(Electra, Generic[Gen, Disc], metaclass=ABCMeta):
-    @classmethod
+
     @abstractmethod
-    def _tie_embeddings(cls, gen: Gen, disc: Disc) -> None:
-        pass
-    
-    @classmethod
-    @property
-    @abstractmethod
-    def backbone_type(cls) -> str:
+    def _tie_embeddings(self, gen: Gen, disc: Disc) -> None:
         pass
 
     def __init__(
@@ -42,15 +36,19 @@ class ElectraWrapper(Electra, Generic[Gen, Disc], metaclass=ABCMeta):
         pad_token: str = '[PAD]',
         class_token: str = '[CLS]',
         separator_token: str = '[SEP]',
+        gen_type: type[nn.Module] = Gen,
+        disc_type: type[nn.Module] = Disc,
         fix: Optional[Callable[[Gen, Disc], None]] = None,
         **kwargs
     ):
-        _generator_inner: Gen = Gen(config=model_generator)
-        _discriminator_inner: Disc = Disc(config=model_generator)
-        if fix:
-            fix(_generator_inner, _discriminator_inner)
+        
+        _generator_inner: Gen = gen_type(config=model_generator)
+        _discriminator_inner: Disc = disc_type(config=model_generator)
+        
+        if fix is None:
+            self._tie_embeddings(_generator_inner,_discriminator_inner)
         else:
-            Self._tie_embeddings(_generator_inner,_discriminator_inner)
+            fix(_generator_inner, _discriminator_inner)
         _generator: Union[LogitsAdapter, Gen]
         _discriminator: Union[LogitsAdapter, Disc]
         _generator, _discriminator = (LogitsAdapter(_generator_inner), LogitsAdapter(_discriminator_inner)) if wrap_to_logits_adapter else (Gen(model_generator), Disc(model_discriminator))
@@ -73,6 +71,9 @@ class ElectraWrapper(Electra, Generic[Gen, Disc], metaclass=ABCMeta):
         self._discriminator = _discriminator
         self.distributed_enabled = distributed_enabled
                 
+    def forward(self, x):
+        return super()(x)
+        
 
     @abstractmethod
     def save_pretrained(self, output_dir: str) -> None:
@@ -91,3 +92,4 @@ class ElectraWrapper(Electra, Generic[Gen, Disc], metaclass=ABCMeta):
             return nn.parallel.DistributedDataParallel(self.to(device), device_ids=[rank], find_unused_parameters=True)
         else:
             return self
+

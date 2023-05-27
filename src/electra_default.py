@@ -9,8 +9,7 @@ import torch.nn as nn
 from typing import Tuple, OrderedDict
 
 class ElectraDefault(ElectraWrapper[ElectraForMaskedLM, ElectraForPreTraining]):
-    @classmethod
-    def _tie_embeddings(cls, gen: ElectraForMaskedLM, disc: ElectraForPreTraining) -> None:
+    def _tie_embeddings(self, gen: ElectraForMaskedLM, disc: ElectraForPreTraining) -> None:
         (
             gen.electra.embeddings.word_embeddings,
             gen.electra.embeddings.position_embeddings,
@@ -20,11 +19,6 @@ class ElectraDefault(ElectraWrapper[ElectraForMaskedLM, ElectraForPreTraining]):
             disc.electra.embeddings.position_embeddings,
             disc.electra.embeddings.token_type_embeddings
         )
-    
-    @classmethod
-    @property
-    def backbone_type(cls) -> str:
-        return "default"
 
     def __init__(
         self,
@@ -53,6 +47,9 @@ class ElectraDefault(ElectraWrapper[ElectraForMaskedLM, ElectraForPreTraining]):
             pad_token=pad_token,
             class_token=class_token,
             separator_token=separator_token,
+            gen_type = ElectraForMaskedLM,
+            disc_type = ElectraForPreTraining,
+            fix=None,
             **kwargs
         )
 

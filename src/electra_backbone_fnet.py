@@ -45,11 +45,6 @@ class ElectraBackbonedWithFNet(ElectraWrapper[FNetForMaskedLM, FNetForPreTrainin
             disc.fnet.embeddings.position_embeddings,
             disc.fnet.embeddings.token_type_embeddings
         )
-    
-    @classmethod
-    @property
-    def backbone_type(cls) -> str:
-        return "fnet"
 
     def __init__(
         self,

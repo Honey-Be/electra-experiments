@@ -30,15 +30,14 @@ from electra_default import *
 from electra_backbone_fnet import *
 from electra_backbone_mobilebert import *
 
-from typing import Type
 
 
 ########################################################################################################
 ## args
 
-V = TypeVar("V", bound=ElectraWrapper)
 @dataclass
-class OpenWebTextArgs(Generic[V]):
+class OpenWebTextArgs:
+    backbone_model_type: arg.Str = 'default'
     data_dir: arg.Str = 'data/openwebtext_features/v1'
     data_vocab_file: arg.Str = 'data/vocab_openwebtext_v1.txt'
     data_n_tensors_per_file: arg.Int = 2048
@@ -61,10 +60,9 @@ class OpenWebTextArgs(Generic[V]):
 
     step_log: arg.Int = 10
     step_ckpt: arg.Int = 10_000
-
-    def __init__(self, W: Type[V]):
-        self.model_generator: arg.Str = f'pretraining/openwebtext/generator.config.d/{W.backbone_type}.json'
-        self.model_discriminator: arg.Str = f'pretraining/openwebtext/discriminator.config.d/{W.backbone_type}.json'
+    
+    model_generator: arg.Str = 'pretraining/openwebtext/generator.config.d/'
+    model_discriminator: arg.Str = 'pretraining/openwebtext/discriminator.config.d/'
 
 ########################################################################################################
 ## train
@@ -72,8 +70,7 @@ class OpenWebTextArgs(Generic[V]):
 
 
 
-El = TypeVar('El', bound=ElectraWrapper)
-def train(rank, args):
+def train(rank, args, variant: type[ElectraWrapper] = ElectraDefault):
 
     #######################
     ## distributed
@@ -92,6 +89,8 @@ def train(rank, args):
     is_master = True if not args.distributed_enabled else args.distributed_enabled and rank == 0
 
 
+    print(f"passed: device = {device}")
+
     #######################
     ## preamble
 
@@ -104,6 +103,7 @@ def train(rank, args):
 
     setup_logging(filename=f'{output_dir}/output.log', console=is_master)
 
+    print(f"passed: preamble")
 
     #######################
     ## dataset
@@ -136,21 +136,26 @@ def train(rank, args):
     ds_train_loader = iter(cycle(DataLoader(ds_train, batch_size=args.opt_batch_size, collate_fn=collate_batch)))
 
 
+    print(f"passed: dataset")
+
     #######################
     ## model
 
     from transformers import AutoConfig, ElectraForMaskedLM, ElectraForPreTraining
-    model_generator = AutoConfig.from_pretrained(args.model_generator, return_unused_kwargs=False)
-    model_discriminator, unused_gen_kwargs = AutoConfig.from_pretrained(args.model_discriminator, return_unused_kwargs=True),
-    model = El(
+    model_generator = AutoConfig.from_pretrained(args.model_generator)
+    model_discriminator = AutoConfig.from_pretrained(args.model_discriminator)
+    model = variant(
         model_generator=model_generator,
         model_discriminator=model_discriminator,
         vocab=tokenizer.vocab,
         mask_prob=args.model_mask_prob,
         random_token_prob=0.,
         wrap_to_logits_adapter=True,
-        distributed_enabled=args.distributed_enabled
+        distributed_enabled=args.distributed_enabled,
+        embedding_size=128,
     ).try_to_distributed_model(rank=rank,device=device)
+
+    print(f"passed: model")
 
     #######################
     ## optimizer
@@ -180,11 +185,14 @@ def train(rank, args):
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=args.opt_warmup_steps, num_training_steps=args.opt_num_training_steps)
     scaler = torch.cuda.amp.GradScaler(enabled=args.gpu_mixed_precision)
 
+    print(f"passed: optimizer")
 
     #######################
     ## train
 
     t, steps_s, eta_m = time(), 0., 0
+
+    print(f"args.data_max_seq_length : {args.data_max_seq_length}")
 
     for step in range(args.opt_num_training_steps+1):
         input_ids, input_mask, segment_ids = next(ds_train_loader)
@@ -193,12 +201,18 @@ def train(rank, args):
         input_mask = input_mask.to(device)
         segment_ids = segment_ids.to(device)
 
+        print(f"... input_ids.shape[1] : {input_ids.shape[1]}")
+        
         assert input_ids.shape[1] <= args.data_max_seq_length
 
         optimizer.zero_grad()
 
+        print("... optimizer.zero_grad()")
+
         with torch.cuda.amp.autocast(enabled=args.gpu_mixed_precision):
             loss, loss_mlm, loss_disc, acc_gen, acc_disc, disc_labels, disc_pred = model(input_ids, attention_mask=input_mask, token_type_ids=segment_ids)
+
+        print(f"... model in step {step} succeeded")
 
         scaler.scale(loss).backward()
         scaler.unscale_(optimizer)
@@ -230,11 +244,13 @@ def train(rank, args):
             t = t2
 
         if step % 200 == 0:
-            logger.info(np.array2string(disc_labels[0].cpu().numpy(), threshold=sys.maxsize, max_line_width=sys.maxsize))
-            logger.info(np.array2string(disc_pred[0].cpu().numpy(), threshold=sys.maxsize, max_line_width=sys.maxsize))
+            logger.info(np.array2string(disc_labels[0].numpy(), threshold=sys.maxsize, max_line_width=sys.maxsize))
+            logger.info(np.array2string(disc_pred[0].numpy(), threshold=sys.maxsize, max_line_width=sys.maxsize))
 
         if step > 0 and step % args.step_ckpt == 0 and is_master:
             model.save_pretrained(f'{args.output_dir}/ckpt/{step}')
+        
+        print(f"... step {step} succeeded\n... ")
 
 ########################################################################################################
 ## preamble
@@ -293,39 +309,32 @@ def copy_source(file, output_dir):
 
 ########################################################################################################
 ## main
-import argparse
-
 SUPPORTED_BACKBONES: set[str] = {'default', 'mobilebert', 'fnet'}
 
 def main():
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--backbone_model_type",
-        default="default",
-        type=str,
-    )
-
-    cmdargs = parser.parse_args()
-    cmdargs.backbone_model_type = cmdargs.backbone_model_type.lower()
     
-    if cmdargs.backbone_model_type not in SUPPORTED_BACKBONES:
-        print(f"Not supported backbone models: {cmdargs.backbone_model_type}",file=sys.stderr)
+    
+   
+
+    # args
+    args = arg.parse_to(OpenWebTextArgs)
+
+    args.backbone_model_type = args.backbone_model_type.lower()
+    if args.backbone_model_type not in SUPPORTED_BACKBONES:
+        print(f"Not supported backbone models: {args.backbone_model_type}",file=sys.stderr)
         return 1
+    
+    args.model_generator = args.model_generator + f'{args.backbone_model_type}.json'
+    args.model_discriminator = args.model_discriminator + f'{args.backbone_model_type}.json'
+    
+
     # preamble
     exp_id = get_exp_id(__file__)
-    output_dir = get_output_dir(exp_id, cmdargs.backbone_model_type)
+    output_dir = get_output_dir(exp_id, args.backbone_model_type)
     os.makedirs(output_dir, exist_ok=True)
     os.makedirs(f'{output_dir}/ckpt', exist_ok=False)
     copy_source(__file__, output_dir)
 
-    # args
-    if cmdargs.backbone_model_type == "fnet":
-        args = arg.parse_to(OpenWebTextArgs[ElectraBackbonedWithFNet])
-    elif cmdargs.backbone_model_type == "mobilebert":
-        args = arg.parse_to(OpenWebTextArgs[ElectraBackbonedWithMobileBert])
-    else:
-        args = arg.parse_to(OpenWebTextArgs[ElectraDefault])
     args.output_dir = output_dir
     args.exp_id = exp_id
 
@@ -336,21 +345,25 @@ def main():
         torch.multiprocessing.spawn(train, nprocs=args.distributed_world_size, args=(args,))
     else:
         try:
-            if cmdargs.backbone_model_type == "fnet":
-                train[ElectraBackbonedWithFNet](rank=args.gpu, args=args)
-            elif cmdargs.backbone_model_type == "mobilebert":
-                train[ElectraBackbonedWithMobileBert](rank=args.gpu, args=args)
-            else:
-                train[ElectraDefault](rank=args.gpu, args=args)
-        except:
-            print("Pretraining failed.", file=sys.stderr)
-            exitcode: int = 1
-        else:
             exitcode: int = 0
+            if args.backbone_model_type == "fnet":
+                train(rank=args.gpu, args=args, variant=ElectraBackbonedWithFNet)
+            elif args.backbone_model_type == "mobilebert":
+                train(rank=args.gpu, args=args, variant=ElectraBackbonedWithMobileBert)
+            else:
+                train(rank=args.gpu, args=args)
+        except RuntimeError as e:
+            print("Pretraining failed.\n", file=sys.stderr)
+            print(f"{e}\n", file=sys.stderr)
+            exitcode = 1
+        else:
+            exitcode = 0
         finally:
             return exitcode
 
 
 if __name__ == '__main__':
     exit_value = main()
+    if exit_value == 0:
+        print("Pretraining succeeded.\n")
     sys.exit(exit_value)

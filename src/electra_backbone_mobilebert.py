@@ -21,11 +21,6 @@ class ElectraBackbonedWithMobileBert(ElectraWrapper[MobileBertForMaskedLM, Mobil
             disc.mobilebert.embeddings.position_embeddings,
             disc.mobilebert.embeddings.token_type_embeddings
         )
-    
-    @classmethod
-    @property
-    def backbone_type(cls) -> str:
-        return "mobilebert"
 
     def __init__(
         self,

@@ -131,7 +131,7 @@ class ExampleBuilderDataset(torch.utils.data.IterableDataset):
     def __iter__(self):
         def create_example():
             while True:
-                token_ids = list(next(self.dataset).cpu().numpy())
+                token_ids = list(next(self.dataset).numpy())
                 example = self.builder.add_line(token_ids)
                 if example:
                     return example
