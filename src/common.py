@@ -71,8 +71,8 @@ class ElectraWrapper(Electra, Generic[Gen, Disc], metaclass=ABCMeta):
         self._discriminator = _discriminator
         self.distributed_enabled = distributed_enabled
                 
-    def forward(self, x):
-        return super()(x)
+    def forward(self, x,**kwargs):
+        return Electra.forward(self, x, **kwargs)
         
 
     @abstractmethod
@@ -92,4 +92,3 @@ class ElectraWrapper(Electra, Generic[Gen, Disc], metaclass=ABCMeta):
             return nn.parallel.DistributedDataParallel(self.to(device), device_ids=[rank], find_unused_parameters=True)
         else:
             return self
-
