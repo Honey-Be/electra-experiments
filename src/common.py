@@ -70,6 +70,8 @@ class ElectraWrapper(Electra, Generic[Gen, Disc], metaclass=ABCMeta):
         self._generator = _generator
         self._discriminator = _discriminator
         self.distributed_enabled = distributed_enabled
+        self._generator_inner: Gen = _generator_inner
+        self._discriminator_inner: Disc = _discriminator_inner
                 
     def forward(self, x,**kwargs):
         return Electra.forward(self, x, **kwargs)
@@ -79,6 +81,14 @@ class ElectraWrapper(Electra, Generic[Gen, Disc], metaclass=ABCMeta):
     def save_pretrained(self, output_dir: str) -> None:
         pass
     
+    @property
+    def generator_inner(self) -> Gen:
+        return self._generator_inner
+    
+    @property
+    def discriminator_inner(self) -> Disc:
+        return self._discriminator_inner
+        
     @property
     def generator(self) -> Union[LogitsAdapter[Gen], Gen]:
         return self._generator
