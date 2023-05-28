@@ -330,6 +330,7 @@ def copy_source(file, output_dir):
 SUPPORTED_BACKBONES: set[str] = {'default', 'mobilebert', 'fnet'}
 from transformers import AutoConfig
 from fnet_improved.configuration_fnet_improved import FNetConfig
+from transformers.models.mobilebert.configuration_mobilebert import MobileBertConfig
 def main():
     
     
@@ -362,7 +363,7 @@ def main():
         args.config_class = FNetConfig
     elif args.backbone_model_type == "mobilebert":
         args.variant: type[ElectraWrapper] = ElectraBackbonedWithMobileBert
-        args.config_class = AutoConfig
+        args.config_class = MobileBertConfig
     else:
         args.variant: type[ElectraWrapper] = ElectraDefault
         args.config_class = AutoConfig
