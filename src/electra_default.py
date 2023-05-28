@@ -33,6 +33,8 @@ class ElectraDefault(ElectraWrapper[ElectraForMaskedLM, ElectraForPreTraining]):
         pad_token: str = '[PAD]',
         class_token: str = '[CLS]',
         separator_token: str = '[SEP]',
+        gen_type = ElectraForMaskedLM,
+        disc_type = ElectraForPreTraining,
         **kwargs
     ):
         super().__init__(
@@ -47,8 +49,8 @@ class ElectraDefault(ElectraWrapper[ElectraForMaskedLM, ElectraForPreTraining]):
             pad_token=pad_token,
             class_token=class_token,
             separator_token=separator_token,
-            gen_type = ElectraForMaskedLM,
-            disc_type = ElectraForPreTraining,
+            gen_type=gen_type,
+            disc_type=disc_type,
             fix=None,
             **kwargs
         )

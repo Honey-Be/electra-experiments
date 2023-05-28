@@ -4,5 +4,4 @@ src/data/openwebtext.tar.xz
 src/data/openwebtext_features
 src/__pycache__
 src/pretraining/__pycache__
-src/pretraining/openwebtext/
 src/pretraining/openwebtext/__pycache__

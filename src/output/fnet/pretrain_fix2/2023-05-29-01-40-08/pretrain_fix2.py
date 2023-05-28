@@ -70,7 +70,7 @@ class OpenWebTextArgs:
 
 
 
-def train(rank, args):
+def train(rank, args, variant: type[ElectraWrapper] = ElectraDefault, custom_config = None):
 
     #######################
     ## distributed
@@ -141,11 +141,13 @@ def train(rank, args):
     #######################
     ## model
 
-    variant: type[ElectraWrapper] = args.variant
-    config_class = args.config_class
-
-    model_generator = config_class.from_pretrained(args.model_generator)
-    model_discriminator = config_class.from_pretrained(args.model_discriminator)
+    from transformers import AutoConfig
+    if custom_config is not None:
+        model_generator = custom_config.from_pretrained(args.model_generator)
+        model_discriminator = custom_config.from_pretrained(args.model_discriminator)
+    else:
+        model_generator = AutoConfig.from_pretrained(args.model_generator)
+        model_discriminator = AutoConfig.from_pretrained(args.model_discriminator)
     _model = variant(
         model_generator=model_generator,
         model_discriminator=model_discriminator,
@@ -154,6 +156,7 @@ def train(rank, args):
         random_token_prob=0.,
         wrap_to_logits_adapter=True,
         distributed_enabled=args.distributed_enabled,
+        embedding_size=128,
     )
     model = _model.try_to_distributed_model(rank=rank,device=device)
     discriminator = _model.discriminator_inner
@@ -212,10 +215,7 @@ def train(rank, args):
         print("... optimizer.zero_grad()")
 
         with torch.cuda.amp.autocast(enabled=args.gpu_mixed_precision):
-            if args.backbone_model_type != "fnet":
-                loss, loss_mlm, loss_disc, acc_gen, acc_disc, disc_labels, disc_pred = model(input_ids, attention_mask=input_mask, token_type_ids=segment_ids)
-            else:
-                loss, loss_mlm, loss_disc, acc_gen, acc_disc, disc_labels, disc_pred = model(input_ids, token_type_ids=segment_ids)
+            loss, loss_mlm, loss_disc, acc_gen, acc_disc, disc_labels, disc_pred = model(input_ids, attention_mask=input_mask, token_type_ids=segment_ids)
 
         print(f"... model in step {step} succeeded")
 
@@ -316,7 +316,7 @@ def copy_source(file, output_dir):
 ########################################################################################################
 ## main
 SUPPORTED_BACKBONES: set[str] = {'default', 'mobilebert', 'fnet'}
-from transformers import AutoConfig
+
 from fnet_improved.configuration_fnet_improved import FNetConfig
 def main():
     
@@ -345,16 +345,6 @@ def main():
     args.output_dir = output_dir
     args.exp_id = exp_id
 
-    if args.backbone_model_type == "fnet":
-        args.variant: type[ElectraWrapper] = ElectraBackbonedWithFNet
-        args.config_class = FNetConfig
-    elif args.backbone_model_type == "mobilebert":
-        args.variant: type[ElectraWrapper] = ElectraBackbonedWithMobileBert
-        args.config_class = AutoConfig
-    else:
-        args.variant: type[ElectraWrapper] = ElectraDefault
-        args.config_class = AutoConfig
-
     # distributed
     if args.distributed_enabled:
         os.environ['MASTER_ADDR'] = 'localhost'
@@ -363,7 +353,12 @@ def main():
     else:
         try:
             exitcode: int = 0
-            train(rank=args.gpu, args=args)
+            if args.backbone_model_type == "fnet":
+                train(rank=args.gpu, args=args, variant=ElectraBackbonedWithFNet, custom_config=FNetConfig)
+            elif args.backbone_model_type == "mobilebert":
+                train(rank=args.gpu, args=args, variant=ElectraBackbonedWithMobileBert)
+            else:
+                train(rank=args.gpu, args=args)
         except RuntimeError as e:
             print("Pretraining failed.\n", file=sys.stderr)
             print(f"{e}\n", file=sys.stderr)

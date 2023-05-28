@@ -35,6 +35,8 @@ class ElectraBackbonedWithMobileBert(ElectraWrapper[MobileBertForMaskedLM, Mobil
         pad_token: str = '[PAD]',
         class_token: str = '[CLS]',
         separator_token: str = '[SEP]',
+        gen_type=MobileBertForMaskedLM,
+        disc_type=MobileBertForPreTraining,
         **kwargs
     ):
         super().__init__(
@@ -49,6 +51,8 @@ class ElectraBackbonedWithMobileBert(ElectraWrapper[MobileBertForMaskedLM, Mobil
             pad_token=pad_token,
             class_token=class_token,
             separator_token=separator_token,
+            gen_type=gen_type,
+            disc_type=disc_type,
             **kwargs
         )
 

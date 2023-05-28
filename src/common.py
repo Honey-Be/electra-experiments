@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from abc import ABCMeta, abstractmethod
 
-from electra_pytorch import Electra
+from electra_pytorch import Electra as electra
 
 from typing import Generic, TypeVar, OrderedDict, Union, Self, Tuple, Callable, Optional, Protocol, get_args
 
@@ -17,7 +17,7 @@ class LogitsAdapter(torch.nn.Module, Generic[A]):
 
 Gen = TypeVar('Gen', bound=nn.Module)
 Disc = TypeVar('Disc', bound=nn.Module)
-class ElectraWrapper(Electra, Generic[Gen, Disc], metaclass=ABCMeta):
+class ElectraWrapper(electra, Generic[Gen, Disc], metaclass=ABCMeta):
 
     @abstractmethod
     def _tie_embeddings(self, gen: Gen, disc: Disc) -> None:
@@ -74,7 +74,7 @@ class ElectraWrapper(Electra, Generic[Gen, Disc], metaclass=ABCMeta):
         self._discriminator_inner: Disc = _discriminator_inner
                 
     def forward(self, x,**kwargs):
-        return Electra.forward(self, x, **kwargs)
+        return electra.forward(self, x, **kwargs)
         
 
     @abstractmethod

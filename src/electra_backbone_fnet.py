@@ -3,7 +3,8 @@ import torch.nn as nn
 
 from common import LogitsAdapter, ElectraWrapper
 
-from fnet_improved.modeling_fnet import FNetForMaskedLM, FNetForPreTraining
+from fnet_improved.modeling_fnet_improved import FNetForMaskedLM
+from fnet_improved.modeling_fnet_improved import FNetForPreTraining
 import torch.nn as nn
 from typing import Tuple, OrderedDict, Optional, Self
 import os
@@ -36,6 +37,8 @@ class ElectraBackbonedWithFNet(ElectraWrapper[FNetForMaskedLM, FNetForPreTrainin
         pad_token: str = '[PAD]',
         class_token: str = '[CLS]',
         separator_token: str = '[SEP]',
+        gen_type=FNetForMaskedLM,
+        disc_type=FNetForPreTraining,
         **kwargs
     ):
         super().__init__(
@@ -50,6 +53,8 @@ class ElectraBackbonedWithFNet(ElectraWrapper[FNetForMaskedLM, FNetForPreTrainin
             pad_token=pad_token,
             class_token=class_token,
             separator_token=separator_token,
+            gen_type=gen_type,
+            disc_type=disc_type,
             fix=None,
             **kwargs
         )
