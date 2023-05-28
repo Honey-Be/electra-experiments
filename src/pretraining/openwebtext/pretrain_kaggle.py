@@ -49,7 +49,7 @@ class OpenWebTextArgs:
     gpu_mixed_precision: arg.Bool = False
     distributed_port: arg.Int = 8888
     distributed_enabled: arg.Bool = True
-    distributed_world_size: arg.Int = 2   # temporary fix for Kaggle
+    distributed_world_size: arg.Int = 2
 
     model_mask_prob: arg.Float = 0.15
 
@@ -144,7 +144,7 @@ def train(rank, args, variant: type[ElectraWrapper] = ElectraDefault):
     from transformers import AutoConfig, ElectraForMaskedLM, ElectraForPreTraining
     model_generator = AutoConfig.from_pretrained(args.model_generator)
     model_discriminator = AutoConfig.from_pretrained(args.model_discriminator)
-    model = variant(
+    _model = variant(
         model_generator=model_generator,
         model_discriminator=model_discriminator,
         vocab=tokenizer.vocab,
@@ -153,8 +153,9 @@ def train(rank, args, variant: type[ElectraWrapper] = ElectraDefault):
         wrap_to_logits_adapter=True,
         distributed_enabled=args.distributed_enabled,
         embedding_size=128,
-    ).try_to_distributed_model(rank=rank,device=device)
-
+    )
+    model = _model.try_to_distributed_model(rank=rank,device=device)
+    discriminator = _model.discriminator_inner
     print(f"passed: model")
 
     #######################
@@ -244,11 +245,12 @@ def train(rank, args, variant: type[ElectraWrapper] = ElectraDefault):
             t = t2
 
         if step % 200 == 0:
-            logger.info(np.array2string(disc_labels[0].numpy(), threshold=sys.maxsize, max_line_width=sys.maxsize))
-            logger.info(np.array2string(disc_pred[0].numpy(), threshold=sys.maxsize, max_line_width=sys.maxsize))
+            logger.info(np.array2string(disc_labels[0].cpu().numpy(), threshold=sys.maxsize, max_line_width=sys.maxsize))
+            logger.info(np.array2string(disc_pred[0].cpu().numpy(), threshold=sys.maxsize, max_line_width=sys.maxsize))
 
         if step > 0 and step % args.step_ckpt == 0 and is_master:
-            model.save_pretrained(f'{args.output_dir}/ckpt/{step}')
+            os.makedirs(f'{args.output_dir}/ckpt/{step}', exist_ok=True)
+            discriminator.save_pretrained(f'{args.output_dir}/ckpt/{step}/')
         
         print(f"... step {step} succeeded\n... ")
 
