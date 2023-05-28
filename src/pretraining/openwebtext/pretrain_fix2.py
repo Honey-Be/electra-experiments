@@ -144,7 +144,7 @@ def train(rank, args, variant: type[ElectraWrapper] = ElectraDefault):
     from transformers import AutoConfig, ElectraForMaskedLM, ElectraForPreTraining
     model_generator = AutoConfig.from_pretrained(args.model_generator)
     model_discriminator = AutoConfig.from_pretrained(args.model_discriminator)
-    model = variant(
+    _model = variant(
         model_generator=model_generator,
         model_discriminator=model_discriminator,
         vocab=tokenizer.vocab,
@@ -153,8 +153,9 @@ def train(rank, args, variant: type[ElectraWrapper] = ElectraDefault):
         wrap_to_logits_adapter=True,
         distributed_enabled=args.distributed_enabled,
         embedding_size=128,
-    ).try_to_distributed_model(rank=rank,device=device)
-
+    )
+    model = _model.try_to_distributed_model(rank=rank,device=device)
+    discriminator = _model.discriminator_inner
     print(f"passed: model")
 
     #######################
@@ -249,7 +250,7 @@ def train(rank, args, variant: type[ElectraWrapper] = ElectraDefault):
 
         if step > 0 and step % args.step_ckpt == 0 and is_master:
             os.makedirs(f'{args.output_dir}/ckpt/{step}', exist_ok=True)
-            model.save_pretrained(f'{args.output_dir}/ckpt/{step}')
+            discriminator.save_pretrained(f'{args.output_dir}/ckpt/{step}/')
         
         print(f"... step {step} succeeded\n... ")
 
