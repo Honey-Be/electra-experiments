@@ -6,3 +6,4 @@ src/data/glue_data
 src/__pycache__
 src/pretraining/__pycache__
 src/pretraining/openwebtext/__pycache__
+src/output
