@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from common import LogitsAdapter, ElectraWrapper
 
-from transformers.models.fnet import FNetForMaskedLM, FNetForPreTraining
+from fnet_improved.modeling_fnet import FNetForMaskedLM, FNetForPreTraining
 import torch.nn as nn
 from typing import Tuple, OrderedDict, Optional, Self
 import os
