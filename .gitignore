@@ -2,6 +2,7 @@ src/data/.tmp.driveupload
 src/data/openwebtext/v1/*
 src/data/openwebtext.tar.xz
 src/data/openwebtext_features
+src/data/glue_data
 src/__pycache__
 src/pretraining/__pycache__
 src/pretraining/openwebtext/__pycache__

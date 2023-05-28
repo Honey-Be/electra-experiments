@@ -56,7 +56,7 @@ class OpenWebTextArgs:
     opt_lr: arg.Float = 5e-4
     opt_batch_size: arg.Int = 128 // (distributed_world_size if distributed_enabled else 1)
     opt_warmup_steps: arg.Int = 10_000
-    opt_num_training_steps: arg.Int = 200_000
+    opt_num_training_steps: arg.Int = 60_000
 
     step_log: arg.Int = 10
     step_ckpt: arg.Int = 10_000
